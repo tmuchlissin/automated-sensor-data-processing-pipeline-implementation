@@ -30,6 +30,19 @@ def create_mysql_table():
     )
     """
 
+    create_table_query_2m = """
+    CREATE TABLE IF NOT EXISTS summary_data_2m (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        timestamp DATETIME,
+        city VARCHAR(255),
+        total_watt INT,
+        total_volt INT,
+        total_amphere FLOAT,
+        avg_watt FLOAT,
+        avg_volt FLOAT,
+        avg_amphere FLOAT
+    )
+    """
 
     create_table_query_1h = """
     CREATE TABLE IF NOT EXISTS summary_data_1h (
@@ -61,6 +74,7 @@ def create_mysql_table():
 
 
     cursor.execute(create_table_query_1m)
+    cursor.execute(create_table_query_2m)
     cursor.execute(create_table_query_1h)
     cursor.execute(create_table_query_1d)
 
@@ -168,6 +182,19 @@ def start_streaming(spark, topic_name, bootstrap_servers):
             round(avg("I (amphere)"), 2).alias("avg_amphere")
         ) \
         .withColumn("timestamp", date_format(col("timestamp.start"), "yyyy-MM-dd HH:mm:ss"))
+    # Define windowed dataframes
+    windowed_df_per_2_minute = parsed_stream_df \
+        .withWatermark("date_time", "2 minute") \
+        .groupBy(window(col("date_time"), "2 minute").alias("timestamp"), col("city")) \
+        .agg(
+            sum("P (watt)").alias("total_watt"),
+            sum("V (volt)").alias("total_volt"),
+            round(sum("I (amphere)"), 2).alias("total_amphere"),
+            round(avg("P (watt)"), 2).alias("avg_watt"),
+            round(avg("V (volt)"), 2).alias("avg_volt"),
+            round(avg("I (amphere)"), 2).alias("avg_amphere")
+        ) \
+        .withColumn("timestamp", date_format(col("timestamp.start"), "yyyy-MM-dd HH:mm:ss"))
 
     windowed_df_per_hour = parsed_stream_df \
         .withWatermark("date_time", "1 hour") \
@@ -207,6 +234,13 @@ def start_streaming(spark, topic_name, bootstrap_servers):
                         .outputMode('update')
                         .trigger(processingTime='60 seconds')
                         .start())
+    
+    query_per_2_minute_mysql = (windowed_df_per_2_minute.writeStream
+                        .foreachBatch(lambda df, id: save_to_mysql(df, id, "summary_data_2m"))
+                        .outputMode('update')
+                        .trigger(processingTime='120 seconds')
+                        .start())
+
 
     query_hour_mysql = (windowed_df_per_hour.writeStream
                         .foreachBatch(lambda df, id: save_to_mysql(df, id, "summary_data_1h"))
@@ -220,8 +254,9 @@ def start_streaming(spark, topic_name, bootstrap_servers):
                     .trigger(processingTime='86400 seconds')
                     .start())
 
-    query_mongodb.awaitTermination()
+    # query_mongodb.awaitTermination()
     query_minute_mysql.awaitTermination()
+    query_per_2_minute_mysql.awaitTermination()
     query_hour_mysql.awaitTermination()
     query_day_mysql.awaitTermination()
 
