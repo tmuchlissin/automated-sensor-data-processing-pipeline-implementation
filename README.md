@@ -29,5 +29,7 @@ The data for this project consists of simulated electrical power consumption dat
 - Visualization and Monitoring :
     - Configured a Grafana dashboard to monitor and visualize the aggregated data stored in MySQL.
 
+## Dashboard
+![screencapture-localhost-3000-d-adfi30xp6z5dsb-dashboard-data-sensor-dummy-2024-06-02-13_52_17](https://github.com/tmuchlissin/automated-sensor-data-processing-pipeline-implementation/assets/117092055/8cf42173-95e1-4b20-b74c-970f8e8f19b5)
 
 
