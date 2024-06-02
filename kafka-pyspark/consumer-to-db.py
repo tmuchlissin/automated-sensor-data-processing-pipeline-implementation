@@ -58,7 +58,6 @@ def create_mysql_table():
     )
     """
 
-
     cursor.execute(create_table_query_1m)
     cursor.execute(create_table_query_1h)
     cursor.execute(create_table_query_1d)
@@ -98,9 +97,7 @@ def save_to_mysql(batch_df, batch_id, table_name):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """
 
-
             cursor.execute(insert_query, (timestamp, city, total_watt, total_volt, total_amphere, avg_watt, avg_volt, avg_amphere))
-
 
         connection.commit()
         connection.close()
